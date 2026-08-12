@@ -1,0 +1,52 @@
+:root {
+  --ink: #152028;
+  --ink-soft: #3a4a54;
+  --paper: #eef2f4;
+  --paper-2: #e2e8ec;
+  --mine: #0f3d38;
+  --mine-deep: #0a2a26;
+  --copper: #c06a3a;
+  --copper-deep: #9a522c;
+  --mist: #c5d0d6;
+  --line: rgba(21, 32, 40, 0.12);
+  --shadow: 0 24px 60px rgba(21, 32, 40, 0.12);
+  --font-display: 'Syne', sans-serif;
+  --font-serif: 'Literata', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: var(--font-serif);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: rgba(192, 106, 58, 0.25);
+}
