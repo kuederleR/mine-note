@@ -1,17 +1,25 @@
 {
   "name": "mine-note",
   "private": true,
+  "description": "A local-first notes app with a searchable connection graph",
+  "author": "Mine",
   "version": "0.1.0",
   "type": "module",
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "concurrently -n server,web -c teal,copper \"npm run dev:server\" \"npm run dev:web\"",
     "dev:web": "vite",
     "dev:server": "tsx watch server/index.ts",
     "build": "tsc -b && vite build",
+    "build:desktop": "npm run build && node scripts/build-electron.mjs",
     "start": "tsx server/index.ts",
     "lint": "oxlint",
     "preview": "vite preview",
-    "seed": "tsx server/seed.ts"
+    "seed": "tsx server/seed.ts",
+    "test": "tsx --test server/*.test.ts src/lib/*.test.ts",
+    "electron:dev": "node scripts/build-electron.mjs && concurrently -k -n web,electron -c copper,cyan \"vite\" \"node scripts/electron-dev.mjs\"",
+    "electron:build:mac": "npm run build:desktop && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
+    "electron:build:win": "npm run build:desktop && electron-builder --win"
   },
   "dependencies": {
     "@xenova/transformers": "^2.17.2",
@@ -19,10 +27,12 @@
     "cors": "^2.8.6",
     "date-fns": "^4.4.0",
     "express": "^5.2.1",
+    "lucide-react": "^1.31.0",
     "marked": "^18.0.9",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-force-graph-2d": "^1.29.1",
+    "sqlite-vec": "^0.1.9",
     "uuid": "^14.0.1",
     "zustand": "^5.0.14"
   },
@@ -36,9 +46,19 @@
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^6.0.4",
     "concurrently": "^10.0.4",
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12",
+    "esbuild": "^0.25.9",
     "oxlint": "^1.75.0",
     "tsx": "^4.23.12",
     "typescript": "~6.0.2",
     "vite": "^8.2.0"
+  },
+  "allowScripts": {
+    "electron@37.10.3": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "@esbuild/darwin-arm64@0.25.12": true,
+    "@esbuild/darwin-arm64@0.28.2": true
   }
 }

@@ -1,0 +1,27 @@
+appId: app.mine.note
+productName: Mine
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - '!dist-electron/**/*.map'
+  - package.json
+asarUnpack:
+  - dist-electron/**
+  - node_modules/better-sqlite3/**
+  - node_modules/sqlite-vec/**
+  - node_modules/onnxruntime-node/**
+directories:
+  buildResources: build
+  output: release
+mac:
+  category: public.app-category.productivity
+  target:
+    - dmg
+  identity: '-'
+  hardenedRuntime: false
+win:
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
