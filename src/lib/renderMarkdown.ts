@@ -1,4 +1,6 @@
 import { marked } from 'marked'
+import type { Category } from '../types'
+import { renderObjectChips } from './objectLink'
 
 marked.setOptions({
   gfm: true,
@@ -13,7 +15,7 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
-function renderSpecialBlocks(src: string): string {
+function renderSpecialBlocks(src: string, categories: Category[] = []): string {
   let text = src.replace(/\r\n/g, '\n')
 
   // Toggles :::toggle Title ... :::
@@ -38,6 +40,16 @@ function renderSpecialBlocks(src: string): string {
     },
   )
 
+  text = renderObjectChips(text)
+
+  text = text.replace(/:([^\s:\[\]]{1,8})\[([^\]]+)\]/g, (_m, tag: string, title: string) => {
+    const t = title.trim()
+    const category = categories.find((c) => c.tag === tag)
+    const color = category?.color || '#c06a3a'
+    const cat = category?.id ? ` data-cat="${escapeHtml(category.id)}"` : ''
+    return `<button type="button" class="wiki-link tag-link" data-wiki="${escapeHtml(t)}" data-tag="${escapeHtml(tag)}"${cat} style="--tag-color:${escapeHtml(color)}"><span class="tag-sigil">${escapeHtml(tag)}</span>${escapeHtml(t)}</button>`
+  })
+
   // Wiki links
   text = text.replace(/\[\[([^\]]+)\]\]/g, (_m, title: string) => {
     const t = title.trim()
@@ -47,7 +59,18 @@ function renderSpecialBlocks(src: string): string {
   return text
 }
 
-export function renderNoteHtml(content: string): string {
-  const prepared = renderSpecialBlocks(content)
-  return marked.parse(prepared) as string
+export function renderNoteHtml(content: string, categories: Category[] = []): string {
+  const prepared = renderSpecialBlocks(
+    content
+      .replace(/<!--\s*mine-agent:[A-Za-z0-9_-]+\s*-->\s*/gi, '')
+      .replace(/\s*<!--\s*\/mine-agent\s*-->/gi, '')
+      .replace(/<!--\s*mine:[a-z0-9-]+:[A-Za-z0-9_-]+(?:\s+[A-Za-z][\w-]*=\S+)*\s*-->\s*/gi, '')
+      .replace(/\s*<!--\s*\/mine:[a-z0-9-]+\s*-->/gi, ''),
+    categories,
+  )
+  return enableTaskCheckboxes(marked.parse(prepared) as string)
+}
+
+function enableTaskCheckboxes(html: string): string {
+  return html.replace(/<input([^>]*?)\sdisabled(?:=(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi, '<input$1')
 }
