@@ -1,0 +1,95 @@
+name: Desktop builds
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+  NPM_CONFIG_DANGEROUSLY_ALLOW_ALL_SCRIPTS: 'true'
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+jobs:
+  windows:
+    name: Windows amd64
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build:desktop
+      - run: npx electron-builder --win nsis --x64 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-amd64
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+  macos:
+    name: macOS Apple Silicon
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build:desktop
+      - run: npx electron-builder --mac dmg --arm64 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: release/*.dmg
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish download page
+    needs: [windows, macos]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Publish rolling GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          NOTES="$(cat <<EOF
+          Desktop builds from \`main\` (\`${GITHUB_SHA:0:7}\`).
+
+          **Windows (amd64)** — per-user installer, no admin. Run the \`.exe\`; it installs to your profile and adds a Start Menu shortcut.
+
+          **macOS (Apple Silicon)** — open the \`.dmg\` and drag Mine into Applications (or \`~/Applications\`). The build is ad-hoc signed, not notarized: first launch is right-click the app → Open.
+          EOF
+          )"
+          if gh release view desktop --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload desktop artifacts/windows-amd64/* artifacts/macos-arm64/* --clobber --repo "${GITHUB_REPOSITORY}"
+            gh release edit desktop --title "Desktop builds" --notes "${NOTES}" --repo "${GITHUB_REPOSITORY}"
+          else
+            gh release create desktop \
+              --title "Desktop builds" \
+              --notes "${NOTES}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              artifacts/windows-amd64/* \
+              artifacts/macos-arm64/*
+          fi

@@ -25,6 +25,15 @@ Open [http://localhost:5173](http://localhost:5173).
 
 Shortcuts: `⌘/Ctrl+S` save & embed · `⌘/Ctrl+K` open Mine · `Esc` close Mine.
 
+## Install (no admin)
+
+Merges to `main` publish a rolling [Desktop release](https://github.com/kuederleR/mine-note/releases/tag/desktop):
+
+- **Windows (amd64)** — run `Mine-*-windows-amd64.exe`. It installs per-user (no UAC) to `%LOCALAPPDATA%\Programs\Mine` and adds Start Menu / desktop shortcuts. Unsigned builds may hit SmartScreen: **More info → Run anyway**.
+- **macOS (Apple Silicon)** — open `Mine-*-macos-arm64.dmg` and drag Mine into Applications or `~/Applications`. The build is ad-hoc signed, not notarized: first launch is **right-click → Open**.
+
+Each workflow run also keeps the same files on the Actions **Artifacts** tab for 30 days.
+
 ## Architecture
 
 ```
@@ -43,3 +52,18 @@ note (markdown)
 | `npm run seed` | Seed demo library / reindex |
 | `npm run build` | Production web build |
 | `npm start` | Serve API + built UI |
+| `npm run docker:build:win` | Windows NSIS installer via Docker (from Mac or Windows) |
+| `npm run docker:build:mac` | macOS zip via Docker (unsigned; `.dmg` still needs a Mac) |
+
+## Desktop builds (Docker)
+
+Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), then from the repo root:
+
+```bash
+npm run docker:build:win   # → release/*.exe
+npm run docker:build:mac   # → release/*-mac.zip
+```
+
+Linux `node_modules` stay in Compose volumes, so they will not overwrite a host install. First Windows build on Apple Silicon pulls an amd64 Wine image and runs under emulation — expect it to be slow.
+
+Prefer GitHub Actions for installers. Docker is optional for local packaging: a signed/ad-hoc `.dmg` still needs macOS (`npm run electron:build:mac`) because Docker cannot run `hdiutil` or Apple code signing.
