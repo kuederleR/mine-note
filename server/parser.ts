@@ -13,6 +13,9 @@ export type ParsedComponent = {
     | 'quote'
     | 'divider'
     | 'wikilink'
+    | 'entity'
+    | 'chunk'
+    | 'reminder'
   content: string
   meta: Record<string, unknown>
   position: number
@@ -28,12 +31,40 @@ function stableId(noteId: string, type: string, content: string, position: numbe
 
 function extractWikiLinks(text: string): string[] {
   const links: string[] = []
-  const re = /\[\[([^\]]+)\]\]/g
+  const wiki = /\[\[([^\]]+)\]\]/g
   let m: RegExpExecArray | null
-  while ((m = re.exec(text))) {
+  while ((m = wiki.exec(text))) {
     links.push(m[1].trim())
   }
+  const tagged = /:([^\s:\[\]]{1,8})\[([^\]]+)\]/g
+  while ((m = tagged.exec(text))) {
+    links.push(m[2].trim())
+  }
   return links
+}
+
+function extractTaggedLinks(text: string): Array<{ tag: string; title: string }> {
+  const out: Array<{ tag: string; title: string }> = []
+  const re = /:([^\s:\[\]]{1,8})\[([^\]]+)\]/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text))) {
+    const tag = m[1].trim()
+    const title = m[2].trim()
+    if (tag && title) out.push({ tag, title })
+  }
+  return out
+}
+
+function unwrapMineComments(src: string): string {
+  return src
+    .replace(/<!--\s*mine-agent:[A-Za-z0-9_-]+\s*-->\s*/gi, '')
+    .replace(/\s*<!--\s*\/mine-agent\s*-->/gi, '')
+    .replace(/<!--\s*mine-row:[A-Za-z0-9_-]+\s*-->\s*/gi, '')
+    .replace(/\s*<!--\s*\/mine-row\s*-->/gi, '')
+    .replace(/<!--\s*mine-col:[A-Za-z0-9_-]+\s*-->\s*/gi, '')
+    .replace(/\s*<!--\s*\/mine-col\s*-->/gi, '')
+    .replace(/<!--\s*mine:[a-z0-9-]+:[A-Za-z0-9_-]+(?:\s+[A-Za-z][\w-]*=\S+)*\s*-->\s*/gi, '')
+    .replace(/\s*<!--\s*\/mine:[a-z0-9-]+\s*-->/gi, '')
 }
 
 /**
@@ -43,12 +74,53 @@ function extractWikiLinks(text: string): string[] {
  *   :::toggle Title ... :::                 — toggles
  *   - [ ] / - [x]                           — todos
  *   [[Wiki Link]]                           — wiki links (also extracted as edges)
+   :@[Name]                               — category tag links (People uses @)
  */
-export function parseNoteToComponents(noteId: string, content: string): ParsedComponent[] {
+function parseFenceAttrs(raw: string): Record<string, string> {
+  const out: Record<string, string> = {}
+  const re = /([A-Za-z][\w-]*)=(\S+)/g
+  let match: RegExpExecArray | null
+  while ((match = re.exec(raw))) out[match[1]] = match[2]
+  return out
+}
+
+function extractReminderComponents(noteId: string, content: string): ParsedComponent[] {
   const lines = content.replace(/\r\n/g, '\n').split('\n')
-  const components: ParsedComponent[] = []
+  const out: ParsedComponent[] = []
+  const openRe = /^<!--\s*mine:reminder:([A-Za-z0-9_-]+)((?:\s+[A-Za-z][\w-]*=\S+)*)\s*-->\s*$/
+  const closeRe = /^<!--\s*\/mine:reminder\s*-->\s*$/
   let i = 0
   let position = 0
+  while (i < lines.length) {
+    const match = (lines[i] || '').trim().match(openRe)
+    if (!match) {
+      i += 1
+      continue
+    }
+    const start = i + 1
+    i += 1
+    while (i < lines.length && !closeRe.test(lines[i].trim()) && !openRe.test(lines[i].trim())) i += 1
+    const title = lines.slice(start, i).join('\n').trim() || 'Reminder'
+    const attrs = parseFenceAttrs(match[2] || '')
+    out.push({
+      id: stableId(noteId, 'reminder', `${match[1]}|${title}|${attrs.due || ''}`, position),
+      type: 'reminder',
+      content: title,
+      meta: { reminderId: match[1], due: attrs.due || '', status: attrs.status || 'todo' },
+      position,
+    })
+    position += 1
+    if (i < lines.length && closeRe.test(lines[i].trim())) i += 1
+  }
+  return out
+}
+
+export function parseNoteToComponents(noteId: string, content: string): ParsedComponent[] {
+  const reminders = extractReminderComponents(noteId, content)
+  const lines = unwrapMineComments(content).replace(/\r\n/g, '\n').split('\n')
+  const components: ParsedComponent[] = []
+  let i = 0
+  let position = reminders.length
 
   const push = (
     type: ParsedComponent['type'],
@@ -58,11 +130,12 @@ export function parseNoteToComponents(noteId: string, content: string): ParsedCo
     const trimmed = text.trim()
     if (!trimmed && type !== 'divider') return
     const wikiLinks = extractWikiLinks(trimmed)
+    const taggedLinks = extractTaggedLinks(trimmed)
     components.push({
       id: stableId(noteId, type, trimmed, position),
       type,
       content: trimmed,
-      meta: { ...meta, wikiLinks },
+      meta: { ...meta, wikiLinks, taggedLinks },
       position,
     })
     position += 1
@@ -139,31 +212,32 @@ export function parseNoteToComponents(noteId: string, content: string): ParsedCo
       continue
     }
 
-    if (/^\s*[-*+]\s+\[[ xX]\]\s+/.test(line)) {
-      const items: { text: string; checked: boolean }[] = []
-      while (i < lines.length && /^\s*[-*+]\s+\[[ xX]\]\s+/.test(lines[i])) {
-        const m = lines[i].match(/^\s*[-*+]\s+\[([ xX])\]\s+(.+)$/)
-        if (m) items.push({ text: m[2], checked: m[1].toLowerCase() === 'x' })
-        i += 1
-      }
-      push(
-        'todo',
-        items.map((it) => `${it.checked ? '[x]' : '[ ]'} ${it.text}`).join('\n'),
-        { items },
-      )
-      continue
-    }
-
-    if (/^\s*[-*+]\s+/.test(line) || /^\s*\d+\.\s+/.test(line)) {
+    if (/^\s*[-*+]\s+\[[ xX]\]\s+/.test(line) || /^\s*[-*+]\s+/.test(line) || /^\s*\d+\.\s+/.test(line)) {
       const body: string[] = []
+      const items: { text: string; checked: boolean }[] = []
+      let todos = 0
+      let total = 0
       while (
         i < lines.length &&
-        (/^\s*[-*+]\s+/.test(lines[i]) || /^\s*\d+\.\s+/.test(lines[i]))
+        (/^\s*[-*+]\s+\[[ xX]\]/.test(lines[i]) ||
+          /^\s*[-*+]\s+/.test(lines[i]) ||
+          /^\s*\d+\.\s+/.test(lines[i]))
       ) {
-        body.push(lines[i].trim())
+        const raw = lines[i]
+        body.push(raw)
+        const todo = raw.match(/^\s*[-*+]\s+\[([ xX])\]\s*(.*)$/)
+        if (todo) {
+          todos += 1
+          items.push({ text: todo[2], checked: todo[1].toLowerCase() === 'x' })
+        }
+        total += 1
         i += 1
       }
-      push('list', body.join('\n'))
+      if (todos === total && todos > 0) {
+        push('todo', body.join('\n'), { items })
+      } else {
+        push('list', body.join('\n'))
+      }
       continue
     }
 
@@ -206,14 +280,11 @@ export function parseNoteToComponents(noteId: string, content: string): ParsedCo
     }
   }
 
-  return components
+  return [...reminders, ...components]
 }
 
+import { formatComponentForSearch } from './objectContext.js'
+
 export function componentSearchText(c: ParsedComponent): string {
-  if (c.type === 'heading') return c.content
-  if (c.type === 'callout') return `${c.meta.kind || 'NOTE'}: ${c.content}`
-  if (c.type === 'toggle') return `Toggle ${c.meta.title || ''}: ${c.content}`
-  if (c.type === 'code') return `Code (${c.meta.language || 'text'}): ${c.content}`
-  if (c.type === 'wikilink') return `Link to ${c.content}`
-  return c.content
+  return formatComponentForSearch({ type: c.type, content: c.content, meta: c.meta })
 }
