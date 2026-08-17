@@ -18,8 +18,10 @@
     "seed": "tsx server/seed.ts",
     "test": "tsx --test server/*.test.ts src/lib/*.test.ts",
     "electron:dev": "node scripts/build-electron.mjs && concurrently -k -n web,electron -c copper,cyan \"vite\" \"node scripts/electron-dev.mjs\"",
-    "electron:build:mac": "npm run build:desktop && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
-    "electron:build:win": "npm run build:desktop && electron-builder --win"
+    "electron:build:mac": "npm run build:desktop && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --arm64 --publish never",
+    "electron:build:win": "npm run build:desktop && electron-builder --win nsis --x64 --publish never",
+    "docker:build:win": "docker compose run --rm win",
+    "docker:build:mac": "docker compose run --rm --build mac"
   },
   "dependencies": {
     "@xenova/transformers": "^2.17.2",
@@ -55,10 +57,19 @@
     "vite": "^8.2.0"
   },
   "allowScripts": {
-    "electron@37.10.3": true,
-    "esbuild@0.25.12": true,
-    "esbuild@0.28.2": true,
-    "@esbuild/darwin-arm64@0.25.12": true,
-    "@esbuild/darwin-arm64@0.28.2": true
+    "better-sqlite3": true,
+    "electron": true,
+    "electron-winstaller": true,
+    "esbuild": true,
+    "@esbuild/darwin-arm64": true,
+    "@esbuild/darwin-x64": true,
+    "@esbuild/linux-arm64": true,
+    "@esbuild/linux-x64": true,
+    "@esbuild/win32-arm64": true,
+    "@esbuild/win32-ia32": true,
+    "@esbuild/win32-x64": true,
+    "fsevents": true,
+    "protobufjs": true,
+    "sharp": true
   }
 }

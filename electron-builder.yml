@@ -9,19 +9,34 @@ asarUnpack:
   - dist-electron/**
   - node_modules/better-sqlite3/**
   - node_modules/sqlite-vec/**
+  - node_modules/sqlite-vec-*/**
   - node_modules/onnxruntime-node/**
+# Prebuilds cover Electron; skip host-platform rebuilds so CI/Docker can pack win/mac from Linux.
+npmRebuild: false
 directories:
   buildResources: build
   output: release
 mac:
   category: public.app-category.productivity
   target:
-    - dmg
+    - target: dmg
+      arch:
+        - arm64
   identity: '-'
   hardenedRuntime: false
+  artifactName: Mine-${version}-macos-arm64.${ext}
 win:
   target:
-    - nsis
+    - target: nsis
+      arch:
+        - x64
+  artifactName: Mine-${version}-windows-amd64.${ext}
 nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  packElevateHelper: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Mine
+  uninstallDisplayName: Mine

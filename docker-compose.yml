@@ -1,0 +1,50 @@
+name: mine-note
+
+# Profiles keep `docker compose up` from building win + mac at once.
+# `docker compose run` enables the service profile automatically.
+services:
+  win:
+    profiles: [win]
+    image: electronuserland/builder:22-wine
+    platform: linux/amd64
+    working_dir: /project
+    init: true
+    volumes:
+      - .:/project
+      - win-node-modules:/project/node_modules
+      - npm-cache:/root/.npm
+      - electron-cache:/root/.cache/electron
+      - electron-builder-cache:/root/.cache/electron-builder
+    environment:
+      ELECTRON_CACHE: /root/.cache/electron
+      ELECTRON_BUILDER_CACHE: /root/.cache/electron-builder
+      NPM_CONFIG_DANGEROUSLY_ALLOW_ALL_SCRIPTS: 'true'
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    command: ['node', 'docker/build.mjs', 'win']
+
+  mac:
+    profiles: [mac]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    working_dir: /project
+    init: true
+    volumes:
+      - .:/project
+      - mac-node-modules:/project/node_modules
+      - npm-cache:/root/.npm
+      - electron-cache:/root/.cache/electron
+      - electron-builder-cache:/root/.cache/electron-builder
+    environment:
+      ELECTRON_CACHE: /root/.cache/electron
+      ELECTRON_BUILDER_CACHE: /root/.cache/electron-builder
+      NPM_CONFIG_DANGEROUSLY_ALLOW_ALL_SCRIPTS: 'true'
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    command: ['node', 'docker/build.mjs', 'mac']
+
+volumes:
+  win-node-modules:
+  mac-node-modules:
+  npm-cache:
+  electron-cache:
+  electron-builder-cache:
