@@ -5,7 +5,7 @@ name: mine-note
 services:
   win:
     profiles: [win]
-    image: electronuserland/builder:22-wine
+    image: electronuserland/builder:24-wine
     platform: linux/amd64
     working_dir: /project
     init: true

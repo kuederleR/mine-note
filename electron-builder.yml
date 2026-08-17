@@ -5,12 +5,11 @@ files:
   - dist-electron/**/*
   - '!dist-electron/**/*.map'
   - package.json
+# ESM imports cannot resolve packages that remain inside app.asar when the
+# server/worker run from app.asar.unpacked (ERR_MODULE_NOT_FOUND).
 asarUnpack:
   - dist-electron/**
-  - node_modules/better-sqlite3/**
-  - node_modules/sqlite-vec/**
-  - node_modules/sqlite-vec-*/**
-  - node_modules/onnxruntime-node/**
+  - node_modules/**
 # Prebuilds cover Electron; skip host-platform rebuilds so CI/Docker can pack win/mac from Linux.
 npmRebuild: false
 directories:

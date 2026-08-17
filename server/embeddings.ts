@@ -4,7 +4,7 @@ import os from 'node:os'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { Worker } from 'node:worker_threads'
-import { pipeline, env } from '@xenova/transformers'
+import { pipeline, env } from '@huggingface/transformers'
 import { toNativeFsPath } from './paths.js'
 
 export const MODEL_ID = 'Xenova/all-MiniLM-L6-v2'

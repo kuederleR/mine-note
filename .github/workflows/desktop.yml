@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: '22'
+  NODE_VERSION: '24'
   NPM_CONFIG_DANGEROUSLY_ALLOW_ALL_SCRIPTS: 'true'
   CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
